@@ -41,7 +41,7 @@ To connect to the robot:
     * `rosrun map_server map_server <YAML File Path>/<filename>.bag_map.yaml`
     
   The image below is a mapping of NEU's Colab 130P in the Snell Library
-![Generated Image](RecordedFiles/Lab3Q1.bag_map.png)
+![Generated Image](./Lab3Q1.bag_map.png)
 
 
 
