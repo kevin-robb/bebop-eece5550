@@ -48,7 +48,7 @@ To connect to the robot:
 
 
 
-##Potential Issues
+## Potential Issues
 In Abhinav's computer, python2 and python3 both were installed
 But in case of final installation sometimes by default python2 is used.
 In such a case
