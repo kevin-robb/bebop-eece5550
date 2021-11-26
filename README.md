@@ -20,7 +20,9 @@ To connect to the robot:
 * Initiate sensors in HOST terminal: `roslaunch turtlebot3_bringup turtlebot3_robot.launch`
 * New MASTER terminal: `cd /<Bag File Destination>`
   * Start Bag file recording: `rosbag record -a`
-###Stopping recording of map:
+* New MASTER Terminal:
+  * Start Cartographer Node: `roslaunch turtlebot3_slam turtlebot3_slam.launch slam_methods:=cartographer`
+### Stopping recording of map:
   * Stop Bag file recorder: `Ctrl+C`
     * Bag file is created in the working directory of the recorder terminal
     * Name of bag file: _`YYYY-MM-DD-Time.bag`_ 
@@ -40,7 +42,8 @@ To connect to the robot:
     * `rosrun rviz rviz`
     * `rosrun map_server map_server <YAML File Path>/<filename>.bag_map.yaml`
     
-  The image below is a mapping of NEU's Colab 130P in the Snell Library
+  The image here is a mapping of NEU's Colab 130P in the Snell Library
+ 
 ![Generated Image](./Lab3Q1.bag_map.png)
 
 
