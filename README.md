@@ -57,5 +57,5 @@ In such a case
 
 Saving to a pbstream file had some issues. The exact command used:
 
-*`rosservice call /write_state "{filename: '${HOME}/Desktop/NEU/EECE_5550/ROS_ASSIGNMENTS/LAB3_Setup/revo_lds.pbstream', include_unfinished_submaps: "false"}"`
+* `rosservice call /write_state "{filename: '${HOME}/Desktop/NEU/EECE_5550/ROS_ASSIGNMENTS/LAB3_Setup/revo_lds.pbstream', include_unfinished_submaps: "false"}"`
 It may sometimes be better to work by navigating to the directory and directly putting the file name than the path name.
