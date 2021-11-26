@@ -46,15 +46,13 @@ To connect to the robot:
 
 
 ##Potential Issues
-Installation of Cartographer done using documentation
-Anything works
 In Abhinav's computer, python2 and python3 both were installed
 But in case of final installation sometimes by default python2 is used.
 In such a case
 * `sudo apt install python-is-python3`
 * `alias python=python3`
 
-Saving to a pbstream file had some issues. The exact command I used:
+Saving to a pbstream file had some issues. The exact command used:
 
 *`rosservice call /write_state "{filename: '${HOME}/Desktop/NEU/EECE_5550/ROS_ASSIGNMENTS/LAB3_Setup/revo_lds.pbstream', include_unfinished_submaps: "false"}"`
-
+It may sometimes be better to work by navigating to the directory and directly putting the file name than the path name.
