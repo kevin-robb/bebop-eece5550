@@ -7,6 +7,9 @@ from scipy.linalg import logm, inv, expm
 from time import sleep
 import tf
 from scipy.spatial.transform import Rotation as R
+from scipy.stats import multivariate_normal
+import imageio
+# import glob
 
 control_pub = None
 tf_listener = None
@@ -15,10 +18,35 @@ r = 0.033 # wheel radius (m)
 w = 0.16 # chassis width (m)
 dt = 0.1 # period for timer_callback
 # Particle Filter parameters
+X_0 = np.array([1,0,0],[0,1,0],[0,0,1])
 set_size = 100
-particle_set = [0 for _ in range(set_size)]
-X = np.array([1,0,0],[0,1,0],[0,0,1])
+particle_set = [X_0 for _ in range(set_size)]
+particle_weights = [1/set_size for _ in range(set_size)]
 U = np.array([0],[0])
+# process noise covariance must be a symmetric positive definite matrix.
+process_noise_cov = np.array([1,1/2,1/3],[1/2,1/3,1/4],[1/3,1/4,1/5])
+map = None
+obstacle_threshold = 0.5
+
+def get_map():
+    # read in map from PNG.
+    rgb_map = imageio.imread('Lab3Q1.bag_map.png')
+    print("map read in with shape ", rgb_map.shape)
+    # convert to grayscale for easy thresholding.
+    r, g, b = rgb_map[:,:,0], rgb_map[:,:,1], rgb_map[:,:,2]
+    gs_map = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    # threshold it to form a boolean occupancy grid.
+    occ_map = [[gs_map[r][c]>0.5 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
+    """
+    To cheat and avoid raycasting: pseudo likelihood field called "euclidean distance transform".
+    Turn map into grid cells, where each grid cell contains value of euclidean distance to nearest obstacle. 
+    Then for some proposed pose, use actual measurement as a lookup to find cell where beam should have ended. 
+    The value of that cell should be zero if it actually hit a cell.
+    Can use negative distances for points inside obstacles (sign distance transform) to account for obstructions earlier than the expected point.
+    """
+    # perform euclidean distance transform.
+    edt_map = [[0 if occ_map[r][c] else -1 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
+
 
 def timer_callback(event):
     pass
@@ -39,17 +67,42 @@ def mcl(U, Z, M):
         # resampling step
         pass
 
-def motion_model(X,U):
+def sensor_likelihood_func():
     """
+    Given the laser scan Z, a current pose X, and the map M.
+    Find the log likelihood of measuring this scan given the actual
+    """
+
+def motion_model_sampler(X_set,U): # (b)
+    """
+    Implementation of motion model sampling function.
+    X_set = list of poses of all particles.
+    U = (dx, dtheta)^T = commanded velocities.
+    process_noise_cov = symmetric positive-definite matrix that parameterizes a mean-zero Gaussian distribution over velocity noise.
+    """
+    # create process noise distribution.
+    noise = multivariate_normal.rvs(mean=None, cov=process_noise_cov, size=set_size)
+    for k in range(X_set):
+        # sample a random realization of the process noise. 
+        # apply motion model (a) to predict next pose for this particle.
+        X_set[k] = motion_model(X_set[k],U,noise[k])
+    return X_set
+
+def motion_model(X_0, U, dv): # (a)
+    """
+    Velocity motion model.
     Use current state X and motor commands U to perform forward kinematics for one timestep.
-    X in SE(2)
-    U = (dx, dtheta)^T
+    X in SE(2) = initial (current) pose of robot.
+    U = (dx, dtheta)^T = commanded velocities.
+    dv in Lie(SE(2)) = additive process noise.
     """
     dx, dtheta = U[0][0], U[1][0]
-    # form omega
+    # commanded velocities in Lie(SE(2)).
     omega = np.array([0,-dtheta,dx],[dtheta,0,0],[0,0,0])
-    # forward kinematics
-    X_next = np.matmul(X, expm(dt * omega))
+    # add error in commanded velocity.
+    omega += dv
+    # perform forward kinematics.
+    X_next = np.matmul(X_0, expm(dt * omega))
     return X_next
 
 def main():
