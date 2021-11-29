@@ -7,7 +7,8 @@ from scipy.linalg import logm, inv, expm
 from time import sleep
 import tf
 from scipy.spatial.transform import Rotation as R
-from scipy.stats import multivariate_normal
+from scipy.stats import multivariate_normal, norm, expon, uniform
+from math import log
 import imageio
 # import glob
 
@@ -36,7 +37,7 @@ def get_map():
     r, g, b = rgb_map[:,:,0], rgb_map[:,:,1], rgb_map[:,:,2]
     gs_map = 0.2989 * r + 0.5870 * g + 0.1140 * b
     # threshold it to form a boolean occupancy grid.
-    occ_map = [[gs_map[r][c]>0.5 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
+    occ_map = [[gs_map[r][c]>obstacle_threshold for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
     """
     To cheat and avoid raycasting: pseudo likelihood field called "euclidean distance transform".
     Turn map into grid cells, where each grid cell contains value of euclidean distance to nearest obstacle. 
@@ -45,7 +46,7 @@ def get_map():
     Can use negative distances for points inside obstacles (sign distance transform) to account for obstructions earlier than the expected point.
     """
     # perform euclidean distance transform.
-    edt_map = [[0 if occ_map[r][c] else -1 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
+    # edt_map = [[0 if occ_map[r][c] else -1 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
 
 
 def timer_callback(event):
@@ -57,21 +58,39 @@ def mcl(U, Z, M):
     Output the posterior particle set.
     """
     global particle_set
-    for k in range(particle_set):
-        # prediction step
-        particle_set[k] = motion_model(particle_set[k])
-        # compute particle weights
-        pass
-    
-    for _ in range(len(particle_set)):
-        # resampling step
-        pass
+    # TODO generate initial particle step at random based on unif distribution.
+    # prediction step.
+    particle_set = motion_model_sampler(particle_set)
+    # TODO compute particle weights (requires raycasting on map).
 
-def sensor_likelihood_func():
+    # TODO resampling step.
+
+def sensor_likelihood_func(Z,X,M):
     """
     Given the laser scan Z, a current pose X, and the map M.
     Find the log likelihood of measuring this scan given the actual
     """
+    # use the true measurement to get the mixture model and log likelihood.
+    ll = 0
+    for z in Z:
+        # Z is a list of laser scans at all angles.
+        # TODO raycasting to get z_star for each pose.
+        mm = mixture_model(z)
+        ll += log(mm)
+
+
+def mixture_model(z_star):
+    # NOTE this doesn't actually depend on particles or map?
+    w_hit,w_short,w_max,w_rand = 0.25, 0.25, 0.25, 0.25
+    sigma_hit = 0.1
+    lambda_short = 0.1
+    z_max = 10 #LiDAR parameter
+    p_hit = norm.rvs(loc=z_star, scale=sigma_hit, size=set_size)
+    p_short = expon.rvs(scale=1/lambda_short, size=set_size)
+    p_max = uniform.rvs(loc=z_max, scale=0.01, size=set_size)
+    p_rand = uniform.rvs(loc=0, scale=z_max, size=set_size)
+    model = w_hit*p_hit + w_short*p_short + w_max*p_max + w_rand*p_rand
+    return model
 
 def motion_model_sampler(X_set,U): # (b)
     """
