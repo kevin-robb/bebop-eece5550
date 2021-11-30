@@ -8,6 +8,7 @@ from scipy.linalg import expm
 from scipy.stats import multivariate_normal, norm, expon, uniform
 from math import log, exp
 import imageio
+from random import choices
 
 control_pub = None
 tf_listener = None
@@ -80,8 +81,9 @@ def resampling_func(particles, ll_weights): # (d) TODO UNFINISHED
     LSE = log(sum([exp(dl) for dl in l_diffs]))
     # compute probabilities
     probabilities = [exp(l - l_mean - LSE) for l in ll_weights]
-    # TODO create new particle set by resampling from 'particles' using 'probabilities' as weights.
-    
+    # create new particle set by resampling from 'particles' using 'probabilities' as weights.
+    particles = choices(particles, probabilities, set_size)
+    return particles
 
 def sensor_likelihood_func(Z, X, M): # (c) TODO UNFINISHED
     """
