@@ -37,7 +37,7 @@ def get_map():
     gs_map = (0.2989 * r + 0.5870 * g + 0.1140 * b) / 255
     # threshold it to form a boolean occupancy grid.
     occ_map = [[gs_map[r][c]>obstacle_threshold for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
-    # TODO make sure this is set to something globally and can be used for raytracing.
+    # TODO make sure this is set to 'map' globally and can be used for raytracing.
 
     """
     ALTERNATIVE TO RAYTRACING:
@@ -52,7 +52,7 @@ def get_map():
 
 
 def timer_callback(event):
-    pass
+    mcl(U,Z,map)
 
 def mcl(U, Z, M):
     """
@@ -61,12 +61,20 @@ def mcl(U, Z, M):
     """
     global particle_set
     # prediction step.
-    particle_set = motion_model_sampler(particle_set)
-    # TODO compute particle weights (requires raycasting on map).
-
+    particle_set = motion_model_sampler(particle_set, U)
+    # compute normalized particle weights (requires raycasting on map).
+    nonnormalized_weights = [sensor_likelihood_func(Z, x, M) for x in particle_set]
+    total_w = sum(nonnormalized_weights)
+    ll_weights = [w / total_w for w in nonnormalized_weights]
     # TODO resampling step.
 
-def sensor_likelihood_func(Z,X,M):
+def resampling_func(particles, ll_weights): # TODO UNFINISHED
+    """
+    Resample particle set from current set of particles, using log-likelihood weights for proportionality.
+    """
+    
+
+def sensor_likelihood_func(Z, X, M): # TODO UNFINISHED
     """
     Given the laser scan Z, a current pose X, and the map M.
     Find the log likelihood of measuring this scan given the actual
@@ -78,6 +86,8 @@ def sensor_likelihood_func(Z,X,M):
         # TODO raycasting to get z_star for each pose.
         mm = mixture_model(z)
         ll += log(mm)
+
+    # TODO return weight for this particle
 
 
 def mixture_model(z_star):
@@ -93,7 +103,7 @@ def mixture_model(z_star):
     model = w_hit*p_hit + w_short*p_short + w_max*p_max + w_rand*p_rand
     return model
 
-def motion_model_sampler(X_set,U): # (b)
+def motion_model_sampler(X_set, U): # (b)
     """
     Implementation of motion model sampling function.
     X_set = list of poses of all particles.
@@ -105,7 +115,7 @@ def motion_model_sampler(X_set,U): # (b)
     for k in range(X_set):
         # sample a random realization of the process noise. 
         # apply motion model (a) to predict next pose for this particle.
-        X_set[k] = motion_model(X_set[k],U,noise[k])
+        X_set[k] = motion_model(X_set[k], U, noise[k])
     return X_set
 
 def motion_model(X_0, U, dv): # (a)
