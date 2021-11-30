@@ -2,15 +2,12 @@
 
 import rospy
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
 import numpy as np
-from scipy.linalg import logm, inv, expm
-from time import sleep
-import tf
-from scipy.spatial.transform import Rotation as R
+from scipy.linalg import expm
 from scipy.stats import multivariate_normal, norm, expon, uniform
 from math import log
 import imageio
-# import glob
 
 control_pub = None
 tf_listener = None
@@ -21,24 +18,29 @@ dt = 0.1 # period for timer_callback
 # Particle Filter parameters
 X_0 = np.array([1,0,0],[0,1,0],[0,0,1])
 set_size = 100
-particle_set = [X_0 for _ in range(set_size)]
+particle_set = None #[X_0 for _ in range(set_size)]
 particle_weights = [1/set_size for _ in range(set_size)]
 U = np.array([0],[0])
+Z = []
 # process noise covariance must be a symmetric positive definite matrix.
 process_noise_cov = np.array([1,1/2,1/3],[1/2,1/3,1/4],[1/3,1/4,1/5])
 map = None
 obstacle_threshold = 0.5
 
 def get_map():
+    # TODO redo this to use the PGM file directly.
     # read in map from PNG.
     rgb_map = imageio.imread('Lab3Q1.bag_map.png')
     print("map read in with shape ", rgb_map.shape)
     # convert to grayscale for easy thresholding.
     r, g, b = rgb_map[:,:,0], rgb_map[:,:,1], rgb_map[:,:,2]
-    gs_map = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    gs_map = (0.2989 * r + 0.5870 * g + 0.1140 * b) / 255
     # threshold it to form a boolean occupancy grid.
     occ_map = [[gs_map[r][c]>obstacle_threshold for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
+    # TODO make sure this is set to something globally and can be used for raytracing.
+
     """
+    ALTERNATIVE TO RAYTRACING:
     To cheat and avoid raycasting: pseudo likelihood field called "euclidean distance transform".
     Turn map into grid cells, where each grid cell contains value of euclidean distance to nearest obstacle. 
     Then for some proposed pose, use actual measurement as a lookup to find cell where beam should have ended. 
@@ -58,7 +60,6 @@ def mcl(U, Z, M):
     Output the posterior particle set.
     """
     global particle_set
-    # TODO generate initial particle step at random based on unif distribution.
     # prediction step.
     particle_set = motion_model_sampler(particle_set)
     # TODO compute particle weights (requires raycasting on map).
@@ -124,19 +125,35 @@ def motion_model(X_0, U, dv): # (a)
     X_next = np.matmul(X_0, expm(dt * omega))
     return X_next
 
-def main():
-    global control_pub, tf_listener
-    rospy.init_node('control_node')
-    # get the TF from the service
-    tf_listener = tf.TransformListener()
+def get_controls(msg):
+    """
+    Grab the control velocities being sent to the robot from some other node (i.e., teleop).
+    """
+    global U
+    U = [msg.linear.x, msg.angular.z]
 
-    # publish the command messages
-    control_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-    # subscribers
-    rospy.Subscriber("/tag_detections",AprilTagDetectionArray,tag_detect,queue_size=1)
-    # make a 10Hz timer
+def get_measurements(msg):
+    """
+    Get the measurements coming from the LiDAR.
+    """
+    global Z
+    Z = msg.ranges
+
+def init_particle_set():
+    global particle_set
+    # TODO initialize the particles uniformly across the entire map.
+    # make it a list of size 'set_size'.
+
+def main():
+    rospy.init_node('custom_mcl')
+    init_particle_set()
+
+    # subscribe to published commands.
+    rospy.Subscriber('/cmd_vel', Twist, get_controls, queue_size=1)
+    # TODO subscribe to lidar measurements.
+    rospy.Subscriber('TODO_LIDAR_TOPIC_FROM_BAG_FILE_REPLAY', LaserScan, get_measurements, queue_size=1)
+
     rospy.Timer(rospy.Duration(dt), timer_callback)
-    # pump callbacks
     rospy.spin()
 
 if __name__ == '__main__':
