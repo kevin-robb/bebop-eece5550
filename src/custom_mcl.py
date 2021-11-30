@@ -10,11 +10,7 @@ from math import log, exp
 import imageio
 from random import choices
 
-control_pub = None
-tf_listener = None
 # Constants:
-r = 0.033 # wheel radius (m)
-w = 0.16 # chassis width (m)
 dt = 0.1 # period for timer_callback
 # Particle Filter parameters
 X_0 = np.array([1,0,0],[0,1,0],[0,0,1])
@@ -23,12 +19,15 @@ particle_set = None #[X_0 for _ in range(set_size)]
 particle_weights = [1/set_size for _ in range(set_size)]
 U = np.array([0],[0])
 Z = []
-# process noise covariance must be a symmetric positive definite matrix.
+# process noise covariance must be a symmetric positive definite matrix. Using a hilbert matrix for now.
 process_noise_cov = np.array([1,1/2,1/3],[1/2,1/3,1/4],[1/3,1/4,1/5])
 map = None
 obstacle_threshold = 0.5
 
 def get_map():
+    """
+    Read in the map from the PGM file and convert it to a format that can be used for raytracing.
+    """
     # TODO redo this to use the PGM file directly.
     # read in map from PNG.
     rgb_map = imageio.imread('Lab3Q1.bag_map.png')
@@ -40,23 +39,12 @@ def get_map():
     occ_map = [[gs_map[r][c]>obstacle_threshold for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
     # TODO make sure this is set to 'map' globally and can be used for raytracing.
 
-    """
-    ALTERNATIVE TO RAYTRACING:
-    To cheat and avoid raycasting: pseudo likelihood field called "euclidean distance transform".
-    Turn map into grid cells, where each grid cell contains value of euclidean distance to nearest obstacle. 
-    Then for some proposed pose, use actual measurement as a lookup to find cell where beam should have ended. 
-    The value of that cell should be zero if it actually hit a cell.
-    Can use negative distances for points inside obstacles (sign distance transform) to account for obstructions earlier than the expected point.
-    """
-    # perform euclidean distance transform.
-    # edt_map = [[0 if occ_map[r][c] else -1 for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
-
 
 def timer_callback(event):
     # TODO may need to change this from a timer with a set period to a subscriber to the /clock topic, to sync with the bag file replay.
     mcl(U,Z,map)
 
-def mcl(U, Z, M):
+def mcl(U, Z, M): # (e)
     """
     Given the prior particle set, last motion command, current sensor scan, and map m.
     Output the posterior particle set.
@@ -81,6 +69,7 @@ def resampling_func(particles, ll_weights): # (d) TODO UNFINISHED
     LSE = log(sum([exp(dl) for dl in l_diffs]))
     # compute probabilities
     probabilities = [exp(l - l_mean - LSE) for l in ll_weights]
+    # TODO might need to normalize here instead of above.
     # create new particle set by resampling from 'particles' using 'probabilities' as weights.
     particles = choices(particles, probabilities, set_size)
     return particles
@@ -174,6 +163,7 @@ def main():
     # TODO subscribe to lidar measurements.
     rospy.Subscriber('TODO_LIDAR_TOPIC_FROM_BAG_FILE_REPLAY', LaserScan, get_measurements, queue_size=1)
 
+    # NOTE may need to subscribe to the '/clock' topic if it is being used already to replay the bag file.
     rospy.Timer(rospy.Duration(dt), timer_callback)
     rospy.spin()
 
