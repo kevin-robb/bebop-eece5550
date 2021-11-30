@@ -91,11 +91,12 @@ def sensor_likelihood_func(Z, X, M): # (c) TODO UNFINISHED
 
 
 def mixture_model(z_star):
-    # NOTE this doesn't actually depend on particles or map?
+    # NOTE: This doesn't actually depend on particles or map
     w_hit,w_short,w_max,w_rand = 0.25, 0.25, 0.25, 0.25
     sigma_hit = 0.1
     lambda_short = 0.1
-    z_max = 10 #LiDAR parameter
+    z_min = 0.12 #Min Range LIDAR
+    z_max = 3.5 #Max Range LIDAR
     p_hit = norm.rvs(loc=z_star, scale=sigma_hit, size=set_size)
     p_short = expon.rvs(scale=1/lambda_short, size=set_size)
     p_max = uniform.rvs(loc=z_max, scale=0.01, size=set_size)
@@ -122,7 +123,7 @@ def motion_model(X_0, U, dv): # (a)
     """
     Velocity motion model.
     Use current state X and motor commands U to perform forward kinematics for one timestep.
-    X in SE(2) = initial (current) pose of robot.
+    X in SE(2) = initia noise = multivariate_normal.rvs(mean=None, cov=process_noise_cov, size=set_size)l (current) pose of robot.
     U = (dx, dtheta)^T = commanded velocities.
     dv in Lie(SE(2)) = additive process noise.
     """
@@ -160,6 +161,7 @@ def main():
 
     # subscribe to published commands.
     rospy.Subscriber('/cmd_vel', Twist, get_controls, queue_size=1)
+   
     # TODO subscribe to lidar measurements.
     rospy.Subscriber('TODO_LIDAR_TOPIC_FROM_BAG_FILE_REPLAY', LaserScan, get_measurements, queue_size=1)
 
