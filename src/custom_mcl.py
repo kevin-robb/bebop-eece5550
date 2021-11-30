@@ -6,7 +6,7 @@ from sensor_msgs.msg import LaserScan
 import numpy as np
 from scipy.linalg import expm
 from scipy.stats import multivariate_normal, norm, expon, uniform
-from math import log
+from math import log, exp
 import imageio
 
 control_pub = None
@@ -52,6 +52,7 @@ def get_map():
 
 
 def timer_callback(event):
+    # TODO may need to change this from a timer with a set period to a subscriber to the /clock topic, to sync with the bag file replay.
     mcl(U,Z,map)
 
 def mcl(U, Z, M):
@@ -66,15 +67,23 @@ def mcl(U, Z, M):
     nonnormalized_weights = [sensor_likelihood_func(Z, x, M) for x in particle_set]
     total_w = sum(nonnormalized_weights)
     ll_weights = [w / total_w for w in nonnormalized_weights]
-    # TODO resampling step.
+    # resampling step.
+    particle_set = resampling_func(particle_set, ll_weights)
 
-def resampling_func(particles, ll_weights): # TODO UNFINISHED
+def resampling_func(particles, ll_weights): # (d) TODO UNFINISHED
     """
     Resample particle set from current set of particles, using log-likelihood weights for proportionality.
     """
+    # get LSE term
+    l_mean = sum(ll_weights) / len(ll_weights)
+    l_diffs = [l-l_mean for l in ll_weights]
+    LSE = log(sum([exp(dl) for dl in l_diffs]))
+    # compute probabilities
+    probabilities = [exp(l - l_mean - LSE) for l in ll_weights]
+    # TODO create new particle set by resampling from 'particles' using 'probabilities' as weights.
     
 
-def sensor_likelihood_func(Z, X, M): # TODO UNFINISHED
+def sensor_likelihood_func(Z, X, M): # (c) TODO UNFINISHED
     """
     Given the laser scan Z, a current pose X, and the map M.
     Find the log likelihood of measuring this scan given the actual
