@@ -12,7 +12,7 @@ import cv2
 
 ############ Constants ###################
 dt = 0.1  # Timer_callback Period
-#----- Particle Filter parameters-------
+# ----- Particle Filter parameters-------
 X_0 = np.array([1, 0, 0], [0, 1, 0], [0, 0, 1])
 set_size = 100
 particle_set = None  # [X_0 for _ in range(set_size)]
@@ -23,6 +23,8 @@ Z = []
 process_noise_cov = np.array([1, 1 / 2, 1 / 3], [1 / 2, 1 / 3, 1 / 4], [1 / 3, 1 / 4, 1 / 5])
 map = None
 obstacle_threshold = 0.5
+
+
 ##########################################
 
 
@@ -39,14 +41,6 @@ def get_map():
     gs_map = (0.2989 * r + 0.5870 * g + 0.1140 * b) / 255
     # threshold it to form a boolean occupancy grid.
     occ_map = [[gs_map[r][c] > obstacle_threshold for c in range(rgb_map.shape[1])] for r in range(rgb_map.shape[0])]
-    # TODO make sure this is set to 'map' globally and can be used for raytracing.
-
-
-# Read in the map from the PGM file and convert it to a format that can be used for raytracing.
-def get_map_CV():
-    occ_map = cv2.threshold(cv2.imread('./RecordedFiles/Lab3Q1.bag_map.pgm', 0), 127, 255, cv2.THRESH_BINARY)
-    print("Map read in with shape ", occ_map[1].shape)
-    cv2.imshow("Thresholded Map", occ_map[1])
     # TODO make sure this is set to 'map' globally and can be used for raytracing.
 
 
@@ -87,17 +81,23 @@ def resampling_func(particles, ll_weights):  # (d) TODO UNFINISHED
     return particles
 
 
+# Called for each particle
 def sensor_likelihood_func(Z, X, M):  # (c) TODO UNFINISHED
+    # Angular Resolution: 1 Degree ==> 360 measurements per particle are obtained
     """
     Given the laser scan Z, a current pose X, and the map M.
     Find the log likelihood of measuring this scan given the actual
+    LIDAR SPECS: Angular Resolution: 1 Degree ==> 360 measurements per particle are obtained
+    Output: Z [Particle Size x 360]  ||   X []
     """
     # use the true measurement to get the mixture model and log likelihood.
+    # TODO raycasting to get z_star for each pose X .
+
     ll = 0
-    for z in Z:
-        # Z is a list of laser scans at all angles.
-        # TODO raycasting to get z_star for each pose.
-        mm = mixture_model(z)
+    for z_star in Z:
+        # Z is a list of laser scans at all angles
+
+        mm = mixture_model(z_star)
         ll += log(mm)
 
     # TODO return weight for this particle
@@ -160,14 +160,38 @@ def get_controls(msg):
     U = [msg.linear.x, msg.angular.z]
 
 
-#Get LIDAR Range measurements
+# Get LIDAR Range measurements
 def get_measurements(msg):
     global Z
     Z = msg.ranges
 
 
+# Read in the map from the PGM file and convert it to a format that can be used for raytracing.
+def get_map_CV():
+    occ_map = cv2.threshold(cv2.imread('./RecordedFiles/Lab3Q1.bag_map.pgm', 0), 127, 255, cv2.THRESH_BINARY)
+    print("Map read in with shape ", occ_map[1].shape)
+    cv2.imshow("Thresholded Map", occ_map[1])
+    rows  = occ_map[1].shape[0]
+    cols  = occ_map[1].shape[1]
+    # TODO make sure this is set to 'map' globally and can be used for raytracing.
+    return [occ_map, rows, cols]
+
+
+# Thresholded map is available
+# -> Randomly select free cells in the occupancy map
+# -> Assign particles to those cells along with a random orientation value [0,360]
 def init_particle_set():
-    global particle_set
+    # Inputs: occupancy_map {(X,Y)->(row, column)}(binarized)
+    # Output: np.array {set_size x 3}->(X,Y,theta) for all particles
+
+    global particle_set, set_size
+    [occ_map, rows, cols] = get_map_CV()
+    flat_map = np.divide(occ_map[1].reshape(1, rows * cols), 255)  # Flatten map and normalize cell values
+    free = np.where(flat_map == 1)  # Get linear index of points where cell is unoccupied
+    #Get (X,Y) values of cells after uniformly sampling free cells
+    particle_coords = np.unravel_index(np.random.choice(free[1], size=set_size, replace=True, p=None), (rows, cols))
+    # Assigns a [3,100] np array to particle set, where each column {particle_set[:,i] corresponds to a pose (X,Y,theta)
+    particle_set = np.stack((particle_coords[0], particle_coords[1], np.random.rand(100) * 360))
 
     # TODO initialize the particles uniformly across the entire map.
     # make it a list of size 'set_size'.
