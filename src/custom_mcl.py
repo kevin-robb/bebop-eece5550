@@ -2,6 +2,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from rosgraph_msgs.msg import Clock
 import numpy as np
 from scipy.linalg import expm
 from scipy.stats import multivariate_normal, norm, expon, uniform
@@ -10,24 +11,35 @@ from random import choices
 import cv2
 
 ############ Constants ###################
-dt = 0.1  # Timer_callback Period
-# ----- Particle Filter parameters-------
-X_0 = np.array([1, 0, 0], [0, 1, 0], [0, 0, 1])
+# ----- Clock parameters -------
+prev_time = None
+dt = 0
+# ----- Particle Filter parameters -------
 set_size = 100
-particle_set = None  # [X_0 for _ in range(set_size)]
-particle_weights = [1 / set_size for _ in range(set_size)]
-U = np.array([0], [0])
-Z = []
+particle_set = None
 # process noise covariance must be a symmetric positive definite matrix. Using a hilbert matrix for now.
 process_noise_cov = np.array([1, 1 / 2, 1 / 3], [1 / 2, 1 / 3, 1 / 4], [1 / 3, 1 / 4, 1 / 5])
 map = None
-
-
+# ------ Data from subscribers --------------
+U = np.array([0], [0])
+Z = []
 ##########################################
 
 
 def timer_callback(event):
-    # TODO may need to change this from a timer with a set period to a subscriber to the /clock topic, to sync with the bag file replay.
+    """
+    Subscribe to the '/clock' topic.
+    This should keep the particle filter synched with a bag file replay.
+    Use the previous time to set dt.
+    """
+    # handle tracking of dt between timesteps.
+    global prev_time, dt
+    if prev_time is None:
+        prev_time = event.clock
+    else:
+        dt = event.clock - prev_time
+        prev_time = event.clock
+    # run the particle filter at this timestep.
     mcl(U, Z, map)
 
 
@@ -205,11 +217,12 @@ def main():
     # subscribe to published commands.
     rospy.Subscriber('/cmd_vel', Twist, get_controls, queue_size=1)
 
-    # TODO subscribe to lidar measurements.
-    rospy.Subscriber('TODO_LIDAR_TOPIC_FROM_BAG_FILE_REPLAY', LaserScan, get_measurements, queue_size=1)
+    # subscribe to lidar measurements. TODO check topic.
+    rospy.Subscriber('/kobuki/laser/scan', LaserScan, get_measurements, queue_size=1)
 
-    # NOTE may need to subscribe to the '/clock' topic if it is being used already to replay the bag file.
-    rospy.Timer(rospy.Duration(dt), timer_callback)
+    # subscribe to the '/clock' topic since it is being used already to replay the bag file.
+    rospy.Subscriber('/clock', Clock, timer_callback)
+    # rospy.Timer(rospy.Duration(dt), timer_callback)
     rospy.spin()
 
 
