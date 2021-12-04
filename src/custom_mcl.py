@@ -105,21 +105,22 @@ def raycasting(X,M): # TODO UNFINISHED
     return Z_pseudo
 
 
-def mixture_model(z_star, z_true): # TODO UNFINISHED. 
-    # TODO need to change to find probability of z_true rather than random sampling with rvs.
+def mixture_model(z_star, z_true):
     """
     Sensor model that will find the likelihood of getting our true measurement z_true given this model.
     This depends on the measurement z_star that we would have gotten if our pose X and map M are actually correct.
     """
-    w_hit, w_short, w_max, w_rand = 0.25, 0.25, 0.25, 0.25 #TODO tune these. keep their sum=1.
+    w_hit, w_short, w_max, w_rand = 0.75, 0.05, 0.10, 0.10 # tune these. keep their sum=1.
     sigma_hit = 0.03 # 'on the order of a few centimeters'
-    lambda_short = 0.1 #TODO tune this
+    lambda_short = 0.1 # tune this
     z_min = 0.12  # Min Range LIDAR
     z_max = 3.5  # Max Range LIDAR
-    p_hit = norm.rvs(loc=z_star, scale=sigma_hit, size=set_size)
-    p_short = expon.rvs(scale=1 / lambda_short, size=set_size)
-    p_max = uniform.rvs(loc=z_max, scale=0.01, size=set_size)
-    p_rand = uniform.rvs(loc=0, scale=z_max, size=set_size)
+    # Use cumulative distribution function to find probability of 
+    #   the true measurement given this distribution.
+    p_hit = norm.cdf(z_true, loc=z_star, scale=sigma_hit)
+    p_short = expon.cdf(z_true, scale=1/lambda_short)
+    p_max = uniform.cdf(z_true, loc=z_max, scale=0.01)
+    p_rand = uniform.cdf(z_true, loc=0, scale=z_max)
     model = w_hit * p_hit + w_short * p_short + w_max * p_max + w_rand * p_rand
     return model
 
