@@ -20,6 +20,8 @@ particle_set = None
 # process noise covariance must be a symmetric positive definite matrix. Using a hilbert matrix for now.
 process_noise_cov = np.array([1, 1 / 2, 1 / 3], [1 / 2, 1 / 3, 1 / 4], [1 / 3, 1 / 4, 1 / 5])
 map = None
+mapResolution  = 0.05 #[m]
+Transform = None
 # ------ Data from subscribers --------------
 U = np.array([0], [0])
 Z = []
@@ -176,6 +178,12 @@ def get_measurements(msg):
     Z = msg.ranges
 
 
+def DistanceTransform(map):
+    global Transform, mapResolution
+    Transform = cv2.distanceTransform(map, distanceType=cv2.DIST_L2, maskSize=5)
+    Transform = np.multiply(Transform, mapResolution)
+
+
 def get_map_CV():
     """
     Read in the map from the PGM file and convert it to a format that can be used for raytracing.
@@ -188,6 +196,7 @@ def get_map_CV():
     cols  = occ_map[1].shape[1]
     # make sure this is set to 'map' globally and can be used for raytracing.
     map = occ_map
+    DistanceTransform(map[1])
     return [occ_map, rows, cols]
 
 
