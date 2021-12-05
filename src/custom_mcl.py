@@ -115,12 +115,13 @@ def mixture_model(z_star, z_true):
     lambda_short = 0.1 # tune this
     z_min = 0.12  # Min Range LIDAR
     z_max = 3.5  # Max Range LIDAR
+    dz = 0.015 # ~ LiDAR resolution. not too important as long as it's constant since we normalize in the end.
     # Use cumulative distribution function to find probability of 
     #   the true measurement given this distribution.
-    p_hit = norm.cdf(z_true, loc=z_star, scale=sigma_hit)
-    p_short = expon.cdf(z_true, scale=1/lambda_short)
-    p_max = uniform.cdf(z_true, loc=z_max, scale=0.01)
-    p_rand = uniform.cdf(z_true, loc=0, scale=z_max)
+    p_hit = norm.cdf(z_true+dz, loc=z_star, scale=sigma_hit) - norm.cdf(z_true-dz, loc=z_star, scale=sigma_hit)
+    p_short = expon.cdf(z_true+dz, scale=1/lambda_short) - expon.cdf(z_true-dz, scale=1/lambda_short)
+    p_max = uniform.cdf(z_true+dz, loc=z_max, scale=0.01) - uniform.cdf(z_true-dz, loc=z_max, scale=0.01)
+    p_rand = uniform.cdf(z_true+dz, loc=0, scale=z_max) - uniform.cdf(z_true-dz, loc=0, scale=z_max)
     model = w_hit * p_hit + w_short * p_short + w_max * p_max + w_rand * p_rand
     return model
 
