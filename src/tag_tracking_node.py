@@ -5,7 +5,6 @@ from apriltag_ros.msg import AprilTagDetectionArray
 # --- Functions ---
 import numpy as np
 from scipy.linalg import inv
-from time import sleep
 from datetime import datetime
 import atexit
 # --- Transforms ---
@@ -133,7 +132,6 @@ def main():
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
-    # TODO subscribe to robot's current position from Cartographer. set to T_BO.
 
     rospy.Timer(rospy.Duration(DT), timer_callback)
     rospy.spin()
