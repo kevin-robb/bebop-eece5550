@@ -6,6 +6,8 @@ from apriltag_ros.msg import AprilTagDetectionArray
 import numpy as np
 from scipy.linalg import inv
 from time import sleep
+from datetime import datetime
+import atexit
 # --- Transforms ---
 import tf
 from scipy.spatial.transform import Rotation as R
@@ -18,7 +20,7 @@ w = 0.16 # chassis width (m)
 X0 = np.array([[1,0,0],[0,1,0],[0,0,1]]) # initial pose
 # --- Transforms (homogenous matrices) ---
 tf_listener = None # for getting T_CB
-T_BO = None # origin->base
+T_BO = X0 #None # origin->base
 T_CB = None # base->cam
 T_AC = None # cam->tag
 T_AO = None # origin->tag
@@ -61,6 +63,21 @@ def get_tag_detection(tag_msg):
         # this is a new tag.
         tags[tag_id] = T_AO
 
+def save_tags_on_exit():
+    """
+    This function should be called when the node exits (via Ctrl-C).
+    It should save the 'tags' dict items to a text file.
+    We create a folder whose name is the current time.
+    Each tag pose is saved as a separate CSV, named as their ID.
+    """
+    # generate filepath.
+    dt = datetime.now()
+    run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
+    filepath = "~/" + str(run_id) + "/"
+    # save all tags.
+    for id in tags.keys():
+        np.savetxt(filepath+str(id)+".csv", tags[id], delimiter=",")
+
 
 def get_T_CB():
     """
@@ -84,6 +101,9 @@ def get_T_CB():
 def main():
     global tf_listener
     rospy.init_node('tag_tracking_node')
+
+    # setup the file writer to be called on exit.
+    atexit.register(save_tags_on_exit)
 
     # get TF from the service.
     tf_listener = tf.TransformListener()
