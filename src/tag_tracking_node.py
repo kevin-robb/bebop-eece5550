@@ -51,6 +51,9 @@ def get_tag_detection(tag_msg):
         return
     
     print("tag detected at T_AC = ", T_AC)
+    # NOTE just return for now to avoid errors related to missing transforms.
+    return
+
     # calculate global pose of the tag.
     T_AO = T_AC * T_CB * T_BO
 
