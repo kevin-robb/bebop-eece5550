@@ -13,6 +13,7 @@ import tf
 from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
+DT = 0.1 # period of timer that gets robot transform T_BO.
 tags = {} # dictionary of tag poses, keyed by ID.
 # --- Robot characteristics ---
 r = 0.033 # wheel radius (m)
@@ -24,6 +25,12 @@ T_BO = X0 #None # origin->base
 T_CB = None # base->cam
 T_AC = None # cam->tag
 T_AO = None # origin->tag
+# --- TF TOPICS ---
+# NOTE we can check for these with 'rosrun tf tf_monitor' while everything is running.
+# options: 'camera_link', 
+TF_ORIGIN = '' #TODO?
+TF_ROBOT_BASE = '/base_footprint'
+TF_CAMERA = '/camera_rgb_optical_frame' #NOTE may need to change this with raspicam.
 ##########################################
 
 def get_tag_detection(tag_msg):
@@ -66,6 +73,7 @@ def get_tag_detection(tag_msg):
         # this is a new tag.
         tags[tag_id] = T_AO
 
+
 def save_tags_on_exit():
     """
     This function should be called when the node exits (via Ctrl-C).
@@ -82,27 +90,37 @@ def save_tags_on_exit():
         np.savetxt(filepath+str(id)+".csv", tags[id], delimiter=",")
 
 
-def get_T_CB():
+def get_transform(TF_FROM, TF_TO):
     """
-    Get the transform between the camera and base robot frame, 
-    and store globally for later use.
+    Get the expected transform from tf.
+    Use translation and quaternion from tf to construct a pose in SE(2).
     """
-    global T_CB
-    # make sure the listener has time to initialize
-    sleep(2.5)
-    # get cam relative to base from the service
-    (t,q) = tf_listener.lookupTransform('/base_footprint', '/camera_rgb_optical_frame', rospy.Time(0))
-    # get equiv rotation matrix from quaternion
+    try:
+        # get relative pose from the tf service. Allow up to 1 second wait.
+        (t,q) = tf_listener.lookupTransform(TF_FROM, TF_TO, rospy.Duration(1.0))
+    except:
+        # requested transform was not found within the 1.0 second Duration.
+        print("transform between "+ TF_FROM +"and"+ TF_TO + " not found.")
+        return
+    # get equiv rotation matrix from quaternion.
     r = R.from_quat(q).as_matrix()
-    # make affine matrix for transformation base->cam
-    T_CB = np.array([[r[0][0],r[0][1],r[0][2],t[0]],
+    # make affine matrix for transformation.
+    return np.array([[r[0][0],r[0][1],r[0][2],t[0]],
                     [r[1][0],r[1][1],r[1][2],t[1]],
                     [r[2][0],r[2][1],r[2][2],t[2]],
                     [0,0,0,1]])
 
 
+def timer_callback(event):
+    """
+    Update T_BO with newest pose from Cartographer.
+    """
+    global T_BO
+    T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+
+
 def main():
-    global tf_listener
+    global tf_listener, T_CB
     rospy.init_node('tag_tracking_node')
 
     # setup the file writer to be called on exit.
@@ -111,12 +129,13 @@ def main():
     # get TF from the service.
     tf_listener = tf.TransformListener()
     # set static transforms.
-    get_T_CB()
+    T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
     # TODO subscribe to robot's current position from Cartographer. set to T_BO.
 
+    rospy.Timer(rospy.Duration(DT), timer_callback)
     rospy.spin()
 
 
