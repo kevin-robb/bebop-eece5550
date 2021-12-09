@@ -26,10 +26,9 @@ T_AC = None # cam->tag
 T_AO = None # origin->tag
 # --- TF TOPICS ---
 # NOTE we can check for these with 'rosrun tf tf_monitor' while everything is running.
-# options: 'camera_link', 
-TF_ORIGIN = '' #TODO?
-TF_ROBOT_BASE = '/base_footprint'
-TF_CAMERA = '/camera_rgb_optical_frame' #NOTE may need to change this with raspicam.
+TF_ORIGIN = '' #TODO get from tf_monitor while cartographer is running
+TF_ROBOT_BASE = 'base_link' #'/base_footprint'
+TF_CAMERA = '/camera_link'
 ##########################################
 
 def get_tag_detection(tag_msg):
