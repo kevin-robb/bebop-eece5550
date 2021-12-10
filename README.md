@@ -59,3 +59,11 @@ Saving to a pbstream file had some issues. The exact command used:
 
 * `rosservice call /write_state "{filename: '${HOME}/Desktop/NEU/EECE_5550/ROS_ASSIGNMENTS/LAB3_Setup/revo_lds.pbstream', include_unfinished_submaps: "false"}"`
 It may sometimes be better to work by navigating to the directory and directly putting the file name than the path name.
+
+
+
+## Final Assignment
+To run explore_lite do the following(Current implementation using Gmapping SLAM)
+* `roslaunch bebop HW4.launch`
+* `roslaunch turtlebot3_slam turtlebot3_slam.launch`
+* `roslaunch explore_lite explore.launch`
