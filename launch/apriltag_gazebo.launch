@@ -3,17 +3,18 @@
   <arg name="node_namespace" default="apriltag_ros_continuous_node" />
   <!-- <arg name="camera_name" default="/camera/rgb" /> -->
   <arg name="camera_name" default="/raspicam_node" />
-  <!-- <arg name="camera_frame" default="camera_rgb_optical_frame" /> -->
-  <arg name="camera_frame" default="camera_link" />
-  <!-- <arg name="image_topic" default="image_raw" /> -->
   <arg name="image_topic" default="image" />
-  <!-- <arg name="image_transport" default="compressed" /> -->
-  
+
+  <!-- <arg name="camera_frame" default="camera_rgb_optical_frame" /> -->
+  <arg name="camera_frame" default="raspicam" />
+
+  <!-- <arg name="image_topic" default="image_raw" /> -->
+
 
   <!-- Set parameters -->
-  <rosparam command="load" file="$(find turtlebot3_mr)/config/settings.yaml" ns="$(arg node_namespace)" />
-  <rosparam command="load" file="$(find turtlebot3_mr)/config/tags.yaml" ns="$(arg node_namespace)" />
-  
+  <rosparam command="load" file="$(find bebop)/config/settings.yaml" ns="$(arg node_namespace)" />
+  <rosparam command="load" file="$(find bebop)/config/tags.yaml" ns="$(arg node_namespace)" />
+
   <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(arg node_namespace)" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)" >
     <!-- Remap topics from those used in code to those on the ROS network -->
     <remap from="image_rect" to="$(arg camera_name)/$(arg image_topic)" />
@@ -21,10 +22,7 @@
 
     <param name="camera_frame" type="str" value="$(arg camera_frame)" />
     <param name="publish_tag_detections_image" type="bool" value="true" />      <!-- default: false -->
-   <param name="camera_info_url" type="string" value="/home/abhinav137/Desktop/NEU/EECE_5550/ROS_ASSIGNMENTS/LAB2/lab2_ws/src/turtlebot3_mr/launch/calibrationdata/ost.yaml" /> 
-    
-  </node>
+<!--    <param name="camera_info_url" type="string" value="/home/abhinav137/Desktop/NEU/EECE_5550/LAB_4/src/bebop/launch/calibrationdata/ost.yaml" /> -->
 
-  <!-- Launch tag tracking node -->
-  <node pkg="bebop" type="tag_tracking_node.py" name="tag_tracking_node"/>
+  </node>
 </launch>
