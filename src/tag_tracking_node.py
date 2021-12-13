@@ -12,7 +12,7 @@ import tf
 from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
-DT = 0.1 # period of timer that gets robot transform T_BO.
+DT = 1 # period of timer that gets robot transform T_BO.
 tags = {} # dictionary of tag poses, keyed by ID.
 # --- Robot characteristics ---
 r = 0.033 # wheel radius (m)
@@ -58,14 +58,19 @@ def get_tag_detection(tag_msg):
     # calculate global pose of the tag.
     # NOTE for now, the robot will not be moving, so we can treat cam frame as an origin.
     T_AO = T_AC #* T_CB * T_BO
+    # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
+    # T_AO = np.delete(T_AO,2,0) # delete 3rd row.
+    # T_AO = np.delete(T_AO,2,1) # delete 3rd column.
 
     # update the dictionary with this tag.
     if tag_id in tags.keys():
+        print('UPDATING TAG: ', tag_id)
         # update using learning rate.
         # - use L=0 to throw away old data in favor of new.
         L = 0.9
         tags[tag_id] = np.add(L * tags[tag_id], (1-L) * T_AO)
     else: 
+        print('FOUND NEW TAG: ', tag_id)
         # this is a new tag.
         tags[tag_id] = T_AO
 
@@ -115,7 +120,9 @@ def timer_callback(event):
     # TODO uncomment this when it's working.
     #T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
     # print list of tags to console.
-    print(tags)
+    # print(tags)
+    for id in tags.keys():
+        print(id, tags[id])
 
 
 def main():
