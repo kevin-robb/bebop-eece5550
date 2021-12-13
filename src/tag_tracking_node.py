@@ -54,17 +54,15 @@ def get_tag_detection(tag_msg):
     except:
         # no tag was detected. do nothing.
         return
-    
-    print("tag detected at T_AC = ", T_AC)
-    # NOTE just return for now to avoid errors related to missing transforms.
-    return
 
     # calculate global pose of the tag.
-    T_AO = T_AC * T_CB * T_BO
+    # NOTE for now, the robot will not be moving, so we can treat cam frame as an origin.
+    T_AO = T_AC #* T_CB * T_BO
 
     # update the dictionary with this tag.
     if tag_id in tags.keys():
         # update using learning rate.
+        # - use L=0 to throw away old data in favor of new.
         L = 0.9
         tags[tag_id] = np.add(L * tags[tag_id], (1-L) * T_AO)
     else: 
@@ -114,7 +112,10 @@ def timer_callback(event):
     Update T_BO with newest pose from Cartographer.
     """
     global T_BO
-    T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+    # TODO uncomment this when it's working.
+    #T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+    # print list of tags to console.
+    print(tags)
 
 
 def main():
@@ -126,8 +127,8 @@ def main():
 
     # get TF from the service.
     tf_listener = tf.TransformListener()
-    # set static transforms.
-    T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
+    # set static transforms. TODO uncomment this when it's working.
+    #T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
