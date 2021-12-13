@@ -36,9 +36,14 @@ def get_tag_detection(tag_msg):
     Detect an AprilTag's pose relative to the camera.
     Update the list if something was detected.
     """
-    try:
-        tag_id = tag_msg.detections[0].id
-        tag_pose = tag_msg.detections[0].pose.pose.pose
+    # verify there is at least one tag detected.
+    if len(tag_msg.detections) == 0:
+        return
+    
+    # do for all detected tags.
+    for i in range(len(tag_msg.detections)):
+        tag_id = tag_msg.detections[i].id
+        tag_pose = tag_msg.detections[i].pose.pose.pose
         # use this to make goal pose in robot base frame.
         t = [tag_pose.position.x,tag_pose.position.y,tag_pose.position.z]
         q = [tag_pose.orientation.w, tag_pose.orientation.x, tag_pose.orientation.y, tag_pose.orientation.z]
@@ -51,28 +56,25 @@ def get_tag_detection(tag_msg):
                         [0,0,0,1]])
         # invert to get tf we want. NOTE not sure if this is necessary.
         T_AC = inv(T_AC)
-    except:
-        # no tag was detected. do nothing.
-        return
 
-    # calculate global pose of the tag.
-    # NOTE for now, the robot will not be moving, so we can treat cam frame as an origin.
-    T_AO = T_AC #* T_CB * T_BO
-    # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
-    # T_AO = np.delete(T_AO,2,0) # delete 3rd row.
-    # T_AO = np.delete(T_AO,2,1) # delete 3rd column.
+        # calculate global pose of the tag.
+        # NOTE for now, the robot will not be moving, so we can treat cam frame as an origin.
+        T_AO = T_AC #* T_CB * T_BO
+        # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
+        #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
+        #T_AO = np.delete(T_AO,2,1) # delete 3rd column.
 
-    # update the dictionary with this tag.
-    if tag_id in tags.keys():
-        print('UPDATING TAG: ', tag_id)
-        # update using learning rate.
-        # - use L=0 to throw away old data in favor of new.
-        L = 0.9
-        tags[tag_id] = np.add(L * tags[tag_id], (1-L) * T_AO)
-    else: 
-        print('FOUND NEW TAG: ', tag_id)
-        # this is a new tag.
-        tags[tag_id] = T_AO
+        # update the dictionary with this tag.
+        if tag_id in tags.keys():
+            print('UPDATING TAG: ', tag_id)
+            # update using learning rate.
+            # - use L=0 to throw away old data in favor of new.
+            L = 0.9
+            tags[tag_id] = np.add(L * tags[tag_id], (1-L) * T_AO)
+        else: 
+            print('FOUND NEW TAG: ', tag_id)
+            # this is a new tag.
+            tags[tag_id] = T_AO
 
 
 def save_tags_on_exit():
