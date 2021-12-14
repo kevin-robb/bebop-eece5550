@@ -3,10 +3,6 @@ import rospy
 # --- Messages ---
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
-# --- Functions ---
-import numpy as np
-# --- Transforms ---
-from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
 # --- Publishers ---
@@ -14,7 +10,7 @@ cmd_pub = None
 # --- Robot characteristics ---
 r = 0.033  # wheel radius (m)
 w = 0.16  # chassis width (m)
-# ----Times--------------
+# --- Time parameters ---
 start_time = None
 end_time   = None
 PirouetteDuration = None  # (Rospy.Duration)
@@ -37,15 +33,17 @@ def get_command(msg):
     Receive command sent from motion planner.
     Either forward it along to robot, or replace with our own command.
     """
-    msg_new  = Twist()
     if rospy.Time.now() >= end_time:
+        # replace motion command with a spin.
+        msg_new  = Twist()
         msg_new.linear.x = 0
         msg_new.angular.z = 1.25  # [radians] Rotates in place for PirouetteDuration -> 360 degree rotation (seconds)
         cmd_pub.publish(msg_new)
         rospy.sleep(PirouetteDuration)
         start_time = rospy.Time.now()
-        end_time = start_time+PirouetteDuration
+        end_time = start_time + PirouetteDuration
     else:
+        # forward along command from motion planner.
         cmd_pub.publish(msg)
 
 
@@ -53,11 +51,11 @@ def main():
 
     global cmd_pub, start_time, end_time, PirouetteDuration
 
-    rospy.init_node('tag_tracking_node')
+    rospy.init_node('cmd_interrupt_node')
 
     PirouetteDuration = rospy.Duration(5.0)
     start_time = rospy.Time.now()
-    end_time = start_time+PirouetteDuration
+    end_time = start_time + PirouetteDuration
 
     # create publisher for cmd_vel.
     cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
