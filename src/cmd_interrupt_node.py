@@ -64,7 +64,6 @@ def main():
 
     # subscribe to LiDAR detections.
     rospy.Subscriber('/scan', LaserScan, get_scan_data, queue_size=1)
-    rospy.Subscriber('/clock', LaserScan, get_scan_data, queue_size=1)
     # subscribe to command sent by motion planner.
     rospy.Subscriber('/cmd_vel_intermediary', Twist, get_command, queue_size=1)
 
