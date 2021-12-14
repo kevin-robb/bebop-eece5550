@@ -12,6 +12,7 @@ import tf
 from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
+filepath = None # file where tags will be saved.
 DT = 1 # period of timer that gets robot transform T_BO.
 tags = {} # dictionary of tag poses, keyed by ID.
 # --- Robot characteristics ---
@@ -76,23 +77,6 @@ def get_tag_detection(tag_msg):
             # this is a new tag.
             tags[tag_id] = T_AO
 
-
-def save_tags_on_exit():
-    """
-    This function should be called when the node exits (via Ctrl-C).
-    It should save the 'tags' dict items to a text file.
-    We create a folder whose name is the current time.
-    Each tag pose is saved as a separate CSV, named as their ID.
-    """
-    # generate filepath.
-    dt = datetime.now()
-    run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
-    filepath = "~/" + str(run_id) + "/"
-    # save all tags.
-    for id in tags.keys():
-        np.savetxt(filepath+str(id)+".csv", tags[id], delimiter=",")
-
-
 def get_transform(TF_FROM, TF_TO):
     """
     Get the expected transform from tf.
@@ -117,22 +101,39 @@ def get_transform(TF_FROM, TF_TO):
 def timer_callback(event):
     """
     Update T_BO with newest pose from Cartographer.
+    Save tags to file.
     """
     global T_BO
     # TODO uncomment this when it's working.
     #T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
-    # print list of tags to console.
-    # print(tags)
+    # save tags to file.
+    
+
+def save_tags_to_file(tags):
+    """
+    We created a file whose name is the current time when the node is launched.
+    All tags and IDs are saved to this file.
+    This will recreate the file every timestep, so when the node ends, 
+        the file should reflect the most updated set of tag poses.
+    """
+    data_for_file = []
     for id in tags.keys():
-        print(id, tags[id])
+        print(id, tags[id]) # print to console for debugging.
+        data_for_file.append("id: " + str(id))
+        for row in tags[id]:
+            data_for_file.append(["    "]+row)
+            data_for_file.append(["---------------------------------------"])
+    np.savetxt(filepath, data_for_file, delimiter=",")
 
 
 def main():
-    global tf_listener, T_CB
+    global tf_listener, T_CB, filepath
     rospy.init_node('tag_tracking_node')
 
-    # setup the file writer to be called on exit.
-    atexit.register(save_tags_on_exit)
+    # generate filepath that tags will be written to.
+    dt = datetime.now()
+    run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
+    filepath = "~/" + str(run_id) + ".txt"
 
     # get TF from the service.
     tf_listener = tf.TransformListener()
