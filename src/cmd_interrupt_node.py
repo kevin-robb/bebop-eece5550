@@ -45,7 +45,7 @@ def main():
     cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
     # subscribe to LiDAR detections.
-    rospy.Subscriber('/kobuki/laser/scan', LaserScan, get_scan_data, queue_size=1)
+    rospy.Subscriber('/scan', LaserScan, get_scan_data, queue_size=1)
     # subscribe to command sent by motion planner.
     rospy.Subscriber('/cmd_vel_intermediary', Twist, get_command, queue_size=1)
 
