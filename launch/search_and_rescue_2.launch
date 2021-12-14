@@ -1,0 +1,22 @@
+<launch>
+
+<arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+
+
+<include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch">
+    <!-- remapped in turtlebot3_cartographer.launch from /map to /cmap -->
+    <arg name="slam_methods" value="cartographer"/>
+</include>
+
+<node pkg="bebop" type="cartographer_remapping.py" name="cartographer_remap" output="screen" />
+
+<!-- move_base , move_base runs by default with cartographer -->
+<!-- <include file="$(find turtlebot3_navigation)/launch/move_base.launch">
+    <arg name="model" value="$(arg model)" />
+    <arg name="move_forward_only" value="True"/>
+</include> -->
+
+<include file="$(find bebop)/launch/explore_lite_custom.launch"/>
+
+
+</launch>

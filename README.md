@@ -70,3 +70,4 @@ To run explore_lite do the following(Current implementation using Gmapping SLAM)
 * note: change turtlebot3_lds_2d.lua(in config folder of turtlebot3_slam package) tracking_frame parameter according to simulation or hardware
 * add track_unknown_map: true in global_costmap_params.yaml in turtlebot3_navigation package. This is to allow explore_lite to use costmap provided by move_base. the global_mapping algo then can try searching in unknown areas.
 After that the explore_costmap.launch file can be used to use tthe costmap provided by move_base global planner.
+* turtlebot3_cartographer.launch remap in occupancy grid from /map to /cmap
