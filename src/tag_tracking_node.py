@@ -6,7 +6,6 @@ from apriltag_ros.msg import AprilTagDetectionArray
 import numpy as np
 from scipy.linalg import inv
 from datetime import datetime
-import atexit
 # --- Transforms ---
 import tf
 from scipy.spatial.transform import Rotation as R
@@ -26,11 +25,12 @@ T_CB = None # base->cam
 T_AC = None # cam->tag
 T_AO = None # origin->tag
 # --- TF TOPICS ---
-# NOTE we can check for these with 'rosrun tf tf_monitor' while everything is running.
-TF_ORIGIN = '' #TODO get from tf_monitor while cartographer is running
-TF_ROBOT_BASE = 'base_link' #'/base_footprint'
-TF_CAMERA = '/camera_link'
+# we can check for these with 'rosrun tf tf_monitor' while everything is running.
+TF_ORIGIN = 'map'
+TF_ROBOT_BASE = 'base_link'
+TF_CAMERA = 'raspicam'
 ##########################################
+
 
 def get_tag_detection(tag_msg):
     """
@@ -59,8 +59,7 @@ def get_tag_detection(tag_msg):
         T_AC = inv(T_AC)
 
         # calculate global pose of the tag.
-        # NOTE for now, the robot will not be moving, so we can treat cam frame as an origin.
-        T_AO = T_AC #* T_CB * T_BO
+        T_AO = T_AC * T_CB * T_BO
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
         #T_AO = np.delete(T_AO,2,1) # delete 3rd column.
@@ -76,6 +75,7 @@ def get_tag_detection(tag_msg):
             print('FOUND NEW TAG: ', tag_id)
             # this is a new tag.
             tags[tag_id] = T_AO
+
 
 def get_transform(TF_FROM, TF_TO):
     """
@@ -104,8 +104,7 @@ def timer_callback(event):
     Save tags to file.
     """
     global T_BO
-    # TODO uncomment this when it's working.
-    #T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+    T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
     # save tags to file.
     save_tags_to_file(tags)
     
@@ -122,9 +121,8 @@ def save_tags_to_file(tags):
         print(id, tags[id]) # print to console for debugging.
         data_for_file.append("id: " + str(id))
         for row in tags[id]:
-            # data_for_file.append(["    "]+row)
             data_for_file.append(list(row))
-        # data_for_file.append(["---------------------------------------"])
+        data_for_file.append("---------------------------------------")
     np.savetxt(filepath, data_for_file, fmt="%s", delimiter=",")
 
 
@@ -135,13 +133,12 @@ def main():
     # generate filepath that tags will be written to.
     dt = datetime.now()
     run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
-    # filepath = "~/" + str(run_id) + ".txt"
-    filepath =  "RUN1.txt"
+    filepath = "tags_" + str(run_id) + ".txt"
 
     # get TF from the service.
     tf_listener = tf.TransformListener()
-    # set static transforms. TODO uncomment this when it's working.
-    #T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
+    # set static transforms.
+    T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
