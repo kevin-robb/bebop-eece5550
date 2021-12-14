@@ -107,6 +107,7 @@ def timer_callback(event):
     # TODO uncomment this when it's working.
     #T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
     # save tags to file.
+    save_tags_to_file(tags)
     
 
 def save_tags_to_file(tags):
@@ -121,9 +122,10 @@ def save_tags_to_file(tags):
         print(id, tags[id]) # print to console for debugging.
         data_for_file.append("id: " + str(id))
         for row in tags[id]:
-            data_for_file.append(["    "]+row)
-            data_for_file.append(["---------------------------------------"])
-    np.savetxt(filepath, data_for_file, delimiter=",")
+            # data_for_file.append(["    "]+row)
+            data_for_file.append(list(row))
+        # data_for_file.append(["---------------------------------------"])
+    np.savetxt(filepath, data_for_file, fmt="%s", delimiter=",")
 
 
 def main():
@@ -133,7 +135,8 @@ def main():
     # generate filepath that tags will be written to.
     dt = datetime.now()
     run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
-    filepath = "~/" + str(run_id) + ".txt"
+    # filepath = "~/" + str(run_id) + ".txt"
+    filepath =  "RUN1.txt"
 
     # get TF from the service.
     tf_listener = tf.TransformListener()
