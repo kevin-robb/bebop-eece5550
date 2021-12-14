@@ -12,8 +12,12 @@ from scipy.spatial.transform import Rotation as R
 # --- Publishers ---
 cmd_pub = None
 # --- Robot characteristics ---
-r = 0.033 # wheel radius (m)
-w = 0.16 # chassis width (m)
+r = 0.033  # wheel radius (m)
+w = 0.16  # chassis width (m)
+# ----Times--------------
+start_time = None
+end_time   = None
+PirouetteDuration = None  # (Rospy.Duration)
 # --- Sensor data ---
 scan = None
 
@@ -28,24 +32,39 @@ def get_scan_data(msg):
 
 
 def get_command(msg):
+    global start_time, end_time, PirouetteDuration
     """
     Receive command sent from motion planner.
     Either forward it along to robot, or replace with our own command.
     """
-    if True:
-        # forward command to robot.
+    msg_new  = Twist()
+    if rospy.Time.now() >= end_time:
+        msg_new.linear.x = 0
+        msg_new.angular.z = 1.25  # [radians] Rotates in place for PirouetteDuration -> 360 degree rotation (seconds)
+        cmd_pub.publish(msg_new)
+        rospy.sleep(PirouetteDuration)
+        start_time = rospy.Time.now()
+        end_time = start_time+PirouetteDuration
+    else:
         cmd_pub.publish(msg)
 
 
 def main():
-    global cmd_pub
+
+    global cmd_pub, start_time, end_time, PirouetteDuration
+
     rospy.init_node('tag_tracking_node')
+
+    PirouetteDuration = rospy.Duration(5.0)
+    start_time = rospy.Time.now()
+    end_time = start_time+PirouetteDuration
 
     # create publisher for cmd_vel.
     cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
     # subscribe to LiDAR detections.
     rospy.Subscriber('/scan', LaserScan, get_scan_data, queue_size=1)
+    rospy.Subscriber('/clock', LaserScan, get_scan_data, queue_size=1)
     # subscribe to command sent by motion planner.
     rospy.Subscriber('/cmd_vel_intermediary', Twist, get_command, queue_size=1)
 
