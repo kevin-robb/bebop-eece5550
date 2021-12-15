@@ -27,7 +27,7 @@ T_CO = None # cam->origin
 # we can check for these with 'rosrun tf tf_monitor' while everything is running.
 TF_ORIGIN = 'map'
 TF_ROBOT_BASE = 'base_link'
-TF_CAMERA = 'camera_link'
+TF_CAMERA = 'raspicam'
 ##########################################
 
 
@@ -56,13 +56,17 @@ def get_tag_detection(tag_msg):
                         [0,0,0,1]])
         # this gave us pose of tag in cam frame.
         # invert to get tf we want. NOTE not sure if this is necessary.
-        T_AC = inv(T_AC)
+        # T_AC = inv(T_AC)
+        print("T_AC\n{}".format(T_AC))
 
         # calculate global pose of the tag, unless the TFs failed to be setup.
         if T_CO is None:
             print("Found tag, but cannot create global transform.")
             return
-        T_AO = T_CO * T_AC 
+        print(T_CO)
+        T_AO =T_AC@T_CO
+
+        print("TAO\n{}".format(T_AO))
 
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
@@ -92,7 +96,8 @@ def get_transform(TF_TO, TF_FROM):
         # tf_listener.waitForTransform(TF_TO, TF_FROM, rospy.Time.now(), rospy.Duration(2.0))
         # get most recent relative pose from the tf service.
         # (t,q) = tf_listener.lookupTransform(TF_TO, TF_FROM, rospy.Time(0))
-        pose = tfBuffer.lookup_transform(TF_TO, TF_FROM, rospy.Time(0))
+        # tfBuffer.waitForTransform(TF_TO, TF_FROM, rospy.Time.now(), rospy.Duration(1))
+        pose = tfBuffer.lookup_transform(TF_TO, TF_FROM,rospy.Time(0), rospy.Duration(4))
         transformT = [pose.transform.translation.x, pose.transform.translation.y, pose.transform.translation.z]
 
         transformQ = (
@@ -127,7 +132,8 @@ def timer_callback(event):
     Save tags to file.
     """
     global T_CO
-    T_CO = get_transform(TF_TO=TF_ORIGIN, TF_FROM=TF_CAMERA)
+    # T_CO = get_transform(TF_TO=TF_ORIGIN, TF_FROM=TF_CAMERA)
+    T_CO = get_transform(TF_TO=TF_CAMERA, TF_FROM=TF_ORIGIN)
     # save tags to file.
     save_tags_to_file(tags)
     
