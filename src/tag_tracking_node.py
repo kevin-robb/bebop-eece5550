@@ -8,6 +8,7 @@ from scipy.linalg import inv
 from datetime import datetime
 # --- Transforms ---
 import tf
+import tf2_ros
 from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
@@ -55,14 +56,15 @@ def get_tag_detection(tag_msg):
                         [r[1][0],r[1][1],r[1][2],t[1]],
                         [r[2][0],r[2][1],r[2][2],t[2]],
                         [0,0,0,1]])
+        # this gave us pose of tag in cam frame.
         # invert to get tf we want. NOTE not sure if this is necessary.
-        T_AC = inv(T_AC)
+        # T_AC = inv(T_AC)
 
         # calculate global pose of the tag, unless the TFs failed to be setup.
         if T_CB is None or T_BO is None:
             return
         T_AO = T_AC * T_CB * T_BO
-        
+
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
         #T_AO = np.delete(T_AO,2,1) # delete 3rd column.
@@ -80,17 +82,19 @@ def get_tag_detection(tag_msg):
             tags[tag_id] = T_AO
 
 
-def get_transform(TF_FROM, TF_TO):
+def get_transform(TF_TO, TF_FROM):
     """
     Get the expected transform from tf.
     Use translation and quaternion from tf to construct a pose in SE(2).
     """
     try:
-        # get relative pose from the tf service. Allow up to 1 second wait.
-        (t,q) = tf_listener.lookupTransform(TF_FROM, TF_TO, rospy.Duration(1.0))
+        # wait until transform becomes available.
+        tf_listener.waitForTransform(TF_TO, TF_FROM, rospy.Time.now(), rospy.Duration(2.0))
+        # get most recent relative pose from the tf service.
+        (t,q) = tf_listener.lookupTransform(TF_TO, TF_FROM, rospy.Time(0))
     except Exception as e:
         # requested transform was not found within the 1.0 second Duration.
-        print("transform between " + TF_FROM + " and " + TF_TO + " not found.")
+        print("transform from " + TF_FROM + " to " + TF_TO + " not found.")
         print("Exception: ", e)
         return None
     # get equiv rotation matrix from quaternion.
@@ -108,7 +112,7 @@ def timer_callback(event):
     Save tags to file.
     """
     global T_BO
-    T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+    T_BO = get_transform(TF_TO=TF_ORIGIN, TF_FROM=TF_ROBOT_BASE)
     # save tags to file.
     save_tags_to_file(tags)
     
@@ -143,9 +147,9 @@ def main():
     filepath = "tags_" + str(run_id) + ".txt"
 
     # get TF from the service.
-    tf_listener = tf.TransformListener()
+    tf_listener = tf2_ros.TransformListener()
     # set static transforms.
-    T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
+    T_CB = get_transform(TF_TO=TF_ROBOT_BASE, TF_FROM=TF_CAMERA)
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
