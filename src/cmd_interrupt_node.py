@@ -11,9 +11,10 @@ cmd_pub = None
 r = 0.033  # wheel radius (m)
 w = 0.16  # chassis width (m)
 # --- Time parameters ---
-start_time = None
-end_time   = None
-MoveDuration = None  # (Rospy.Duration)
+MoveStartTime = None
+MoveEndTime = None
+MoveDuration = rospy.Duration(30.0)
+PirouetteDuration = rospy.Duration(20)
 # --- Sensor data ---
 scan = None
 
@@ -28,25 +29,29 @@ def get_scan_data(msg):
 
 
 def get_command(msg):
-    global MoveStart_time, MoveEnd_time, MoveDuration
     """
     Receive command sent from motion planner.
     Either forward it along to robot, or replace with our own command.
+    We wait MoveDuration seconds between pirouettes.
+    When MoveDuration seconds have passed, we begin our spin.
+    Params must satisfy PirouetteDuration * msg_new.angular.z = 2 pi = 6.28.
     """
-    if rospy.Time.now() >= MoveEnd_time:
+    global MoveStartTime, MoveEndTime
+    if rospy.Time.now() >= MoveEndTime:
         # replace motion command with a spin.
         msg_new  = Twist()
         msg_new.linear.x = 0
         msg_new.angular.z = 0.3125  # [radians] Rotates in place for PirouetteDuration -> 360 degree rotation (seconds)'
-        PirouetteDuration = rospy.Duration(20)
         PirouetteStartTime = rospy.Time.now()
-        PirouetteEndTime = PirouetteStartTime+PirouetteDuration
+        PirouetteEndTime = PirouetteStartTime + PirouetteDuration
         while rospy.Time.now() <= PirouetteEndTime:
-            print("Rotating\n")
+            # perform a full 360deg spin in place.
+            print("Rotating to search for tags.")
             cmd_pub.publish(msg_new)
-            rospy.sleep(0.1)
-        MoveStart_time = rospy.Time.now()
-        MoveEnd_time = MoveStart_time + MoveDuration
+            rospy.sleep(0.1) # prevent bot from being flooded with commands.
+        # setup time of next pirouette.
+        MoveStartTime = rospy.Time.now()
+        MoveEndTime = MoveStartTime + MoveDuration
     else:
         # forward along command from motion planner.
         cmd_pub.publish(msg)
@@ -54,13 +59,12 @@ def get_command(msg):
 
 def main():
 
-    global cmd_pub, MoveStart_time, MoveEnd_time, MoveDuration
+    global cmd_pub, MoveStartTime, MoveEndTime
 
     rospy.init_node('cmd_interrupt_node')
 
-    MoveDuration = rospy.Duration(30.0)
-    MoveStart_time = rospy.Time.now()
-    MoveEnd_time = MoveStart_time + MoveDuration
+    MoveStartTime = rospy.Time.now()
+    MoveEndTime = MoveStartTime + MoveDuration
 
     # create publisher for cmd_vel.
     cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
