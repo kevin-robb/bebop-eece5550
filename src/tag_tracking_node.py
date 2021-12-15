@@ -1,13 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 # --- Messages ---
 from apriltag_ros.msg import AprilTagDetectionArray
 # --- Functions ---
 import numpy as np
-from scipy.linalg import inv
+# from scipy.linalg import inv
 from datetime import datetime
 # --- Transforms ---
-import tf
+import tf2_ros
 from scipy.spatial.transform import Rotation as R
 
 ############ GLOBAL VARIABLES ###################
@@ -15,19 +15,16 @@ filepath = None # file where tags will be saved.
 DT = 1 # period of timer that gets robot transform T_BO.
 tags = {} # dictionary of tag poses, keyed by ID.
 # --- Robot characteristics ---
-r = 0.033 # wheel radius (m)
-w = 0.16 # chassis width (m)
-X0 = np.array([[1,0,0],[0,1,0],[0,0,1]]) # initial pose
-# --- Transforms (homogenous matrices) ---
-tf_listener = None # for getting T_CB
-T_BO = X0 #None # origin->base
-T_CB = None # base->cam
-T_AC = None # cam->tag
-T_AO = None # origin->tag
-# --- TF TOPICS ---
+r = 0.033 # wheel radius (m).
+w = 0.16 # chassis width (m).
+# --- Transforms ---
+tf_listener = None
+tf_buffer = None
+T_CO = None # tf between cam and origin.
+# --- TF Frames ---
 # we can check for these with 'rosrun tf tf_monitor' while everything is running.
 TF_ORIGIN = 'map'
-TF_ROBOT_BASE = 'base_link'
+# TF_ROBOT_BASE = 'base_link'
 TF_CAMERA = 'raspicam'
 ##########################################
 
@@ -55,11 +52,17 @@ def get_tag_detection(tag_msg):
                         [r[1][0],r[1][1],r[1][2],t[1]],
                         [r[2][0],r[2][1],r[2][2],t[2]],
                         [0,0,0,1]])
-        # invert to get tf we want. NOTE not sure if this is necessary.
-        T_AC = inv(T_AC)
+        # we now have pose of tag in cam frame.
+        # print("T_AC\n{}".format(T_AC))
 
-        # calculate global pose of the tag.
-        T_AO = T_AC * T_CB * T_BO
+        # calculate global pose of the tag, unless the TF failed to be setup.
+        if T_CO is None:
+            print("Found tag, but cannot create global transform.")
+            return
+        # print("T_CO\n{}".format(T_CO))
+        T_AO =T_AC@T_CO
+        # print("TAO\n{}".format(T_AO))
+
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
         #T_AO = np.delete(T_AO,2,1) # delete 3rd column.
@@ -73,38 +76,49 @@ def get_tag_detection(tag_msg):
             tags[tag_id] = np.add(L * tags[tag_id], (1-L) * T_AO)
         else: 
             print('FOUND NEW TAG: ', tag_id)
-            # this is a new tag.
+            # create a new entry for this tag.
             tags[tag_id] = T_AO
 
 
-def get_transform(TF_FROM, TF_TO):
+def get_transform(TF_TO, TF_FROM):
+    global tf_buffer
     """
     Get the expected transform from tf.
-    Use translation and quaternion from tf to construct a pose in SE(2).
+    Use translation and quaternion from tf to construct a pose in SE(3).
     """
     try:
-        # get relative pose from the tf service. Allow up to 1 second wait.
-        (t,q) = tf_listener.lookupTransform(TF_FROM, TF_TO, rospy.Duration(1.0))
-    except:
-        # requested transform was not found within the 1.0 second Duration.
-        print("transform between "+ TF_FROM +"and"+ TF_TO + " not found.")
-        return
+        # get most recent relative pose from the tf service.
+        pose = tf_buffer.lookup_transform(TF_TO, TF_FROM,rospy.Time(0), rospy.Duration(4))
+    except Exception as e:
+        # requested transform was not found.
+        print("Transform from " + TF_FROM + " to " + TF_TO + " not found.")
+        print("Exception: ", e)
+        return None
+    
+    # extract translation and quaternion from tf pose.
+    transformT = [pose.transform.translation.x, pose.transform.translation.y, pose.transform.translation.z]
+    transformQ = (
+        pose.transform.rotation.x,
+        pose.transform.rotation.y,
+        pose.transform.rotation.z,
+        pose.transform.rotation.w)
     # get equiv rotation matrix from quaternion.
-    r = R.from_quat(q).as_matrix()
+    r = R.from_quat(transformQ).as_matrix()
+
     # make affine matrix for transformation.
-    return np.array([[r[0][0],r[0][1],r[0][2],t[0]],
-                    [r[1][0],r[1][1],r[1][2],t[1]],
-                    [r[2][0],r[2][1],r[2][2],t[2]],
+    return np.array([[r[0][0],r[0][1],r[0][2],transformT[0]],
+                    [r[1][0],r[1][1],r[1][2],transformT[1]],
+                    [r[2][0],r[2][1],r[2][2],transformT[2]],
                     [0,0,0,1]])
 
 
 def timer_callback(event):
     """
-    Update T_BO with newest pose from Cartographer.
+    Update T_CO with newest pose from Cartographer.
     Save tags to file.
     """
-    global T_BO
-    T_BO = get_transform(TF_ORIGIN, TF_ROBOT_BASE)
+    global T_CO
+    T_CO = get_transform(TF_TO=TF_CAMERA, TF_FROM=TF_ORIGIN)
     # save tags to file.
     save_tags_to_file(tags)
     
@@ -116,6 +130,9 @@ def save_tags_to_file(tags):
     This will recreate the file every timestep, so when the node ends, 
         the file should reflect the most updated set of tag poses.
     """
+    if not tags:
+        # don't create the file if there aren't any tags detected yet.
+        return
     data_for_file = []
     for id in tags.keys():
         print(id, tags[id]) # print to console for debugging.
@@ -127,7 +144,7 @@ def save_tags_to_file(tags):
 
 
 def main():
-    global tf_listener, T_CB, filepath
+    global tf_listener, tf_buffer, filepath
     rospy.init_node('tag_tracking_node')
 
     # generate filepath that tags will be written to.
@@ -135,13 +152,12 @@ def main():
     run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
     filepath = "tags_" + str(run_id) + ".txt"
 
-    # get TF from the service.
-    tf_listener = tf.TransformListener()
-    # set static transforms.
-    T_CB = get_transform(TF_ROBOT_BASE, TF_CAMERA)
+    # setup TF service.
+    tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
     # subscribe to apriltag detections.
-    rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
+    rospy.Subscriber("/tag_detections", AprilTagDetectionArray, get_tag_detection, queue_size=1)
 
     rospy.Timer(rospy.Duration(DT), timer_callback)
     rospy.spin()
