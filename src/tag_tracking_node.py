@@ -20,11 +20,9 @@ r = 0.033 # wheel radius (m)
 w = 0.16 # chassis width (m)
 X0 = np.array([[1,0,0],[0,1,0],[0,0,1]]) # initial pose
 # --- Transforms (homogenous matrices) ---
-tf_listener = None # for getting T_CB
-T_BO = X0 #None # origin->base
-T_CB = None # base->cam
-T_AC = None # cam->tag
-T_AO = None # origin->tag
+tf_listener = None
+tfBuffer = None
+T_CO = None # cam->origin
 # --- TF TOPICS ---
 # we can check for these with 'rosrun tf tf_monitor' while everything is running.
 TF_ORIGIN = 'map'
@@ -58,12 +56,13 @@ def get_tag_detection(tag_msg):
                         [0,0,0,1]])
         # this gave us pose of tag in cam frame.
         # invert to get tf we want. NOTE not sure if this is necessary.
-        # T_AC = inv(T_AC)
+        T_AC = inv(T_AC)
 
         # calculate global pose of the tag, unless the TFs failed to be setup.
-        if T_CB is None or T_BO is None:
+        if T_CO is None:
+            print("Found tag, but cannot create global transform.")
             return
-        T_AO = T_AC * T_CB * T_BO
+        T_AO = T_CO * T_AC 
 
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
@@ -88,8 +87,6 @@ def get_transform(TF_TO, TF_FROM):
     Get the expected transform from tf.
     Use translation and quaternion from tf to construct a pose in SE(2).
     """
-    transformT=[]
-    transformQ = []
     try:
         # wait until transform becomes available.
         # tf_listener.waitForTransform(TF_TO, TF_FROM, rospy.Time.now(), rospy.Duration(2.0))
@@ -105,8 +102,8 @@ def get_transform(TF_TO, TF_FROM):
             pose.transform.rotation.w)
 
     except Exception as e:
-        # requested transform was not found within the 1.0 second Duration.
-        print("transform from " + TF_FROM + " to " + TF_TO + " not found.")
+        # requested transform was not found.
+        print("Transform from " + TF_FROM + " to " + TF_TO + " not found.")
         print("Exception: ", e)
         return None
     # get equiv rotation matrix from quaternion.
@@ -126,11 +123,11 @@ def get_transform(TF_TO, TF_FROM):
 
 def timer_callback(event):
     """
-    Update T_BO with newest pose from Cartographer.
+    Update T_CO with newest pose from Cartographer.
     Save tags to file.
     """
-    global T_BO
-    T_BO = get_transform(TF_TO=TF_ORIGIN, TF_FROM=TF_CAMERA)
+    global T_CO
+    T_CO = get_transform(TF_TO=TF_ORIGIN, TF_FROM=TF_CAMERA)
     # save tags to file.
     save_tags_to_file(tags)
     
@@ -156,7 +153,7 @@ def save_tags_to_file(tags):
 
 
 def main():
-    global tf_listener,tfBuffer, T_CB, filepath
+    global tf_listener, tfBuffer, filepath
     rospy.init_node('tag_tracking_node')
 
     # generate filepath that tags will be written to.
@@ -164,12 +161,9 @@ def main():
     run_id = dt.strftime("%Y-%m-%d-%H-%M-%S")
     filepath = "tags_" + str(run_id) + ".txt"
 
-    # get TF from the service.
+    # setup TF service.
     tfBuffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
     tf_listener = tf2_ros.TransformListener(tfBuffer)
-    # set static transforms.
-    T_CB = get_transform(TF_TO=TF_ROBOT_BASE, TF_FROM=TF_CAMERA)
-    print("Camera->Base{}".format(T_CB))
 
     # subscribe to apriltag detections.
     rospy.Subscriber("/tag_detections",AprilTagDetectionArray,get_tag_detection,queue_size=1)
