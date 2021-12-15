@@ -58,8 +58,11 @@ def get_tag_detection(tag_msg):
         # invert to get tf we want. NOTE not sure if this is necessary.
         T_AC = inv(T_AC)
 
-        # calculate global pose of the tag.
+        # calculate global pose of the tag, unless the TFs failed to be setup.
+        if T_CB is None or T_BO is None:
+            return
         T_AO = T_AC * T_CB * T_BO
+        
         # strip out z-axis parts AFTER transforming, to change from SE(3) to SE(2).
         #T_AO = np.delete(T_AO,2,0) # delete 3rd row.
         #T_AO = np.delete(T_AO,2,1) # delete 3rd column.
@@ -85,10 +88,11 @@ def get_transform(TF_FROM, TF_TO):
     try:
         # get relative pose from the tf service. Allow up to 1 second wait.
         (t,q) = tf_listener.lookupTransform(TF_FROM, TF_TO, rospy.Duration(1.0))
-    except:
+    except Exception as e:
         # requested transform was not found within the 1.0 second Duration.
-        print("transform between "+ TF_FROM +"and"+ TF_TO + " not found.")
-        return
+        print("transform between " + TF_FROM + " and " + TF_TO + " not found.")
+        print("Exception: ", e)
+        return None
     # get equiv rotation matrix from quaternion.
     r = R.from_quat(q).as_matrix()
     # make affine matrix for transformation.
@@ -116,6 +120,9 @@ def save_tags_to_file(tags):
     This will recreate the file every timestep, so when the node ends, 
         the file should reflect the most updated set of tag poses.
     """
+    if not tags:
+        # don't create the file if there aren't any tags.
+        return
     data_for_file = []
     for id in tags.keys():
         print(id, tags[id]) # print to console for debugging.
