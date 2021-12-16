@@ -62,12 +62,15 @@ It may sometimes be better to work by navigating to the directory and directly p
 
 
 
-## Final Assignment
+## Final Assignment simulation 
+Currently world has tags of one id only.
 To run explore_lite do the following(Current implementation using Gmapping SLAM)
-* `roslaunch bebop HW4.launch`
-* `roslaunch turtlebot3_slam turtlebot3_slam.launch`
-* `roslaunch explore_lite explore.launch`
-* note: change turtlebot3_lds_2d.lua(in config folder of turtlebot3_slam package) tracking_frame parameter according to simulation or hardware
-* add track_unknown_map: true in global_costmap_params.yaml in turtlebot3_navigation package. This is to allow explore_lite to use costmap provided by move_base. the global_mapping algo then can try searching in unknown areas.
-After that the explore_costmap.launch file can be used to use tthe costmap provided by move_base global planner.
-* turtlebot3_cartographer.launch remap in occupancy grid from /map to /cmap
+
+* `roslaunch bebop search_and_rescue.launch`
+* Change turtlebot3_lds_2d.lua(in config folder of turtlebot3_slam package) tracking_frame parameter according to simulation or hardware.
+* Add track_unknown_map: true in global_costmap_params.yaml in turtlebot3_navigation package. This is to allow explore_lite to use costmap provided by move_base. the global_mapping algo then can try searching in unknown areas.
+After that the explore_costmap.launch file can be used to use the costmap provided by move_base global planner.
+* In Turtlebot3_cartographer.launch(occupancy grid) remap from /map to /cmap.
+* Remap the topic name in move_base from cmd_vel to cmd_vel_intermediary. 
+* `roslaunch bebop search_and_rescue_2.launch`
+

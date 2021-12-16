@@ -2,6 +2,7 @@
 
 <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
 
+<node pkg="bebop" type="tag_tracking_node.py" name="tag_tracking_node" output="screen" />
 
 <include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch">
     <!-- remapped in turtlebot3_cartographer.launch from /map to /cmap -->
@@ -17,6 +18,9 @@
 </include> -->
 
 <include file="$(find bebop)/launch/explore_lite_custom.launch"/>
+
+<node pkg="bebop" type="cmd_interrupt_node.py" name="pirouette" output="screen" />
+
 
 
 </launch>
