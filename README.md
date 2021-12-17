@@ -67,8 +67,14 @@ It may sometimes be better to work by navigating to the directory and directly p
 In this project we apply the concepts of mobile robotics to perform autonomous reconnaissance in a simulated disaster environment. More specifically, our task entails placing a TurtleBot3 in an unexplored environment populated by AprilTags, which act as stand-ins for the simulated victims. The Turtlebot must generate a complete map of the environment in addition to a comprehensive list of the AprilTags present. This list must include the AprilTag's absolute pose with respect to the map generated and its ID number. To complete this task, the Turtlebot is equipped with a $360\degree$ LiDAR scanner, necessary for localization and mapping, and a Rasberry Pi Camera to detect the Apriltags. A successful reconnaissance operation will require our team to implement techniques such as mobile robotic kinematics and sensing, feature extraction, simultaneous localization and mapping (SLAM), and motion planning.
 
 ### Procedure
+* Place the robot in a new, unknown, environment.
+* Simultaneously:
+  * Via Cartographer, perform SLAM to create a map of the environment and track the position of the robot.
+  * Use frontier exploration to autonomously drive the robot around the environment.
+  * Detect AprilTags and store their global poses.
+* End the search after all the tags are detected and a complete map of the environment is developed
 
-### Running our Code
+### To run our Code
 
 1. Establish an SSH connection between the robot and the host PC. This can be done with the following command in the terminal:
     * `ssh ubuntu@IP_ADDRESS_OF_RASPI_ON_ROBOT`
