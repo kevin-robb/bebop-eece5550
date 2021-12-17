@@ -70,11 +70,48 @@ In this project we apply the concepts of mobile robotics to perform autonomous r
 
 ### Running our Code
 
-To run explore_lite do the following(Current implementation using Gmapping SLAM)
-* `roslaunch bebop HW4.launch`
-* `roslaunch turtlebot3_slam turtlebot3_slam.launch`
-* `roslaunch explore_lite explore.launch`
-* note: change turtlebot3_lds_2d.lua(in config folder of turtlebot3_slam package) tracking_frame parameter according to simulation or hardware
-* add track_unknown_map: true in global_costmap_params.yaml in turtlebot3_navigation package. This is to allow explore_lite to use costmap provided by move_base. the global_mapping algo then can try searching in unknown areas.
-After that the explore_costmap.launch file can be used to use tthe costmap provided by move_base global planner.
-* turtlebot3_cartographer.launch remap in occupancy grid from /map to /cmap
+1. Establish an SSH connection between the robot and the host PC. This can be done with the following command in the terminal:
+    * `ssh ubuntu@IP_ADDRESS_OF_RASPI_ON_ROBOT`
+- Update the `.bashrc` with the IP addresses of both devices. On the robot, the following two lines should be in the `.bashrc`
+    * `export ROS_MASTER_URI=http://IP_ADDRESS_OF_REMOTE_PC:11311`
+    * `export ROS_HOSTNAME=IP_ADDRESS_OF_RASPI_ON_ROBOT`
+- while the following two lines should be in the `.bashrc` of the host PC:
+    * `export ROS_MASTER_URI=http://IP_ADDRESS_OF_REMOTE_PC:11311`
+    * `export ROS_HOSTNAME=IP_ADDRESS_OF_REMOTE_PC`
+
+2. Run roscore on the host PC
+
+3. Run the two raspicam commands on the robot via SSH.
+    * `roslaunch raspicam_node camerav2_1280x960_10fps.launch enable_raw:=true`
+    * `rosrun tf static_transform_publisher 0.03 0 0.1 0 1.57 0 base_link raspicam 100`
+
+4. Run the AprilTag detection node on the robot via SSH. This will use the camera images to identify AprilTag poses. We use the provided launch file from Lab 3, with some modifications to the camera information.
+    * `roslaunch bebop apriltag_gazebo.launch`
+
+5. On the host PC, run the node `tag_tracking_node.py`, a custom node to track of all tags detected.
+    * `rosrun bebop tag_tracking_node.py`
+
+6. Run turtlebot bringup on the robot.
+    * `roslaunch turtlebot3_bringup turtlebot3_robot.launch`
+
+7. Add this line to remap from `/map` topic to `/cmap` in `turtlebot3\cartographer.launch` (occupancy grid node) file in `turtlebot3\slam` package.
+    * `<remap from="/map" to="/cmap" />`
+
+8. Run SLAM on the host PC. We use Cartographer.
+    * `roslaunch turtlebot3_slam turtlebot3_slam.launch slam_methods:=cartographer`
+
+9. Remap the Cartographer occupancy grid for `explore\lite` with our node `cartographer_remapping.py`. Run on the host PC.
+    * `rosrun bebop cartographer_remapping.py`
+
+10. Change the topic to which `move_base` publishes the command velocity in `move_base.launch` in the `turtlebot3_navigation` package from `/cmd_vel` to `/cmd_vel_intermediary`
+
+11. Run our node (on the host PC). This intercepts motion commands and forwards them to the robot.
+    * `rosrun bebop cmd_interrupt_node.py`
+
+12. Run our motion planner on the host PC. (Cartographer will automatically run `move\_base by` default)
+    * `roslaunch turtlebot3_navigation move_base.launch`
+    * `roslaunch bebop explore_lite_custom.launch
+ 
+13. Once the turtlebot completes its task, you can save the map by running:
+    * `rosrun map_server map_saver <FILEPATH>`
+- The list of tags' global poses is automatically saved to your working directory under the filename `tags\_DATETIME.txt`.
