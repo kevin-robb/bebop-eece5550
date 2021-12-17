@@ -28,7 +28,7 @@ T_AO = None # origin->tag
 # we can check for these with 'rosrun tf tf_monitor' while everything is running.
 TF_ORIGIN = 'map'
 TF_ROBOT_BASE = 'base_link'
-TF_CAMERA = 'raspicam'
+TF_CAMERA = 'camera_rgb_optical_frame'
 ##########################################
 
 

@@ -53,7 +53,7 @@ def main():
 
     global cmd_pub, start_time, end_time, PirouetteDuration
 
-    rospy.init_node('tag_tracking_node')
+    rospy.init_node('cmd_interrupt_node')
 
     PirouetteDuration = rospy.Duration(5.0)
     start_time = rospy.Time.now()
