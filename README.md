@@ -26,7 +26,7 @@ This repository itself will be treated as a ROS package. It will contain one or 
     * `export ROS_MASTER_URI=http://IP_ADDRESS_OF_REMOTE_PC:11311`
     * `export ROS_HOSTNAME=IP_ADDRESS_OF_REMOTE_PC`
 
-2. Run roscore on the host PC
+2. Run `roscore` on the host PC
 
 3. Run the two raspicam commands on the robot via SSH.
     * `roslaunch raspicam_node camerav2_1280x960_10fps.launch enable_raw:=true`
@@ -65,7 +65,7 @@ This repository itself will be treated as a ROS package. It will contain one or 
 
 ---
 
-##  Lab 3
+##  Lab 3: Mapping with teleop
 
 ## Question 1: Steps to generate a PGM and YAML file of the mapped region
 ### Starting Recording 
