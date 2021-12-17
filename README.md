@@ -81,7 +81,7 @@ In this project we apply the concepts of mobile robotics to perform autonomous r
 - Update the `.bashrc` with the IP addresses of both devices. On the robot, the following two lines should be in the `.bashrc`
     * `export ROS_MASTER_URI=http://IP_ADDRESS_OF_REMOTE_PC:11311`
     * `export ROS_HOSTNAME=IP_ADDRESS_OF_RASPI_ON_ROBOT`
-- while the following two lines should be in the `.bashrc` of the host PC:
+- While the following two lines should be in the `.bashrc` of the host PC:
     * `export ROS_MASTER_URI=http://IP_ADDRESS_OF_REMOTE_PC:11311`
     * `export ROS_HOSTNAME=IP_ADDRESS_OF_REMOTE_PC`
 
