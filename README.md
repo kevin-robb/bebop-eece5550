@@ -68,6 +68,8 @@ In this project we apply the concepts of mobile robotics to perform autonomous r
 
 ### Procedure
 
+### Running our Code
+
 To run explore_lite do the following(Current implementation using Gmapping SLAM)
 * `roslaunch bebop HW4.launch`
 * `roslaunch turtlebot3_slam turtlebot3_slam.launch`
