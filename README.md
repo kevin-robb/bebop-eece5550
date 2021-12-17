@@ -1,5 +1,4 @@
 # bebop-eece5550
-
 This repository itself will be treated as a ROS package. It will contain one or more nodes that are intended to be run on the turtlebot itself, and it will contain one or more nodes that will be run on the remote PC. The same package will be cloned to both machines for convenience. We will probably create two separate launch files, one that will be run on the robot and one that will be run on the remote PC.
 
 To connect to the robot:
@@ -63,6 +62,12 @@ It may sometimes be better to work by navigating to the directory and directly p
 
 
 ## Final Assignment
+
+### Background
+In this project we apply the concepts of mobile robotics to perform autonomous reconnaissance in a simulated disaster environment. More specifically, our task entails placing a TurtleBot3 in an unexplored environment populated by AprilTags, which act as stand-ins for the simulated victims. The Turtlebot must generate a complete map of the environment in addition to a comprehensive list of the AprilTags present. This list must include the AprilTag's absolute pose with respect to the map generated and its ID number. To complete this task, the Turtlebot is equipped with a $360\degree$ LiDAR scanner, necessary for localization and mapping, and a Rasberry Pi Camera to detect the Apriltags. A successful reconnaissance operation will require our team to implement techniques such as mobile robotic kinematics and sensing, feature extraction, simultaneous localization and mapping (SLAM), and motion planning.
+
+### Procedure
+
 To run explore_lite do the following(Current implementation using Gmapping SLAM)
 * `roslaunch bebop HW4.launch`
 * `roslaunch turtlebot3_slam turtlebot3_slam.launch`
