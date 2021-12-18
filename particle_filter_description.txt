@@ -1,0 +1,14 @@
+Particle Filter Code Description:
+
+Our codebase resides in one python file, custom_mcl.py.
+We have several functions, which mirror some of Dr. Rosen's guidelines on the MCL process in the lab 3 assignment pdf.
+
+We subscribe to the LiDAR scan measurements, the published commands on '/cmd_vel', and to the '/clock' topic to stay in sync with the rosbag playback. When the clock topic is triggered, our timer_callback function runs, which calculated a time difference dt with the previous timestep and calls our main mcl function.
+
+The mcl function uses a particular command, measurement, and dt to forward propagate the particle set (using the motion_model_sampler and the motion_model, with the forward kinematics from lab 2), obtain the particle weights from sensor_likelihood_func, normalize the weights, and create the next particle set using resampling_func. 
+
+The most complicated part of this process is the weights and resampling, which requires access to the map. We read in the PGM file of the map of our environment, and use openCV to convert it into an occupancy grid, and from that perform a Euclidean distance transform. This gives us a grid of cells whose value corresponds to the distance from that cell to the nearest obstacle on the map. What this allows is for us to skip the raycasting step (high complexity) and instead use the EDT array as a lookup table. We use our forward-propagated particle set and our true measurement from the '/scan' topic to, for each particle, calculate the cell that should be an obstacle if our particle's pose and our measurement are correct. We find that cell, and look at its EDT value; if it is 0, then that cell is indeed occupied (though it may be in the center of an obstacle rather than a surface). If it is not a zero, then we take that value as our error; although this distance may not necessarily fall along the same line as the LiDAR scan that got us to that cell, it is a good enough approximation to allow us to decipher good pose estimates from bad ones. Using these accumulated errors, we compute a log likelihood for each particle, and from that we can use a weighted random choice function to select our next particle set.
+
+We could also add an "exploration rate" of sorts, such as 0.05, meaning that 5% of the time a random particle will be generated in the environment, rather than selecting from the existing set. This would help avoid all particles centering around the wrong pose and being too depleted to find the true pose. 
+
+Each function is fairly well documented with its function and its expected inputs and outputs. 
